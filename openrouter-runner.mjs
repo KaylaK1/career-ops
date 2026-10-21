@@ -891,9 +891,12 @@ async function cmdApply(ref, ctx) {
 // Only run the CLI when invoked directly (`node openrouter-runner.mjs ...`), so the
 // module can be imported (e.g. by test-all.mjs) without executing a command.
 const invokedDirectly = isMainModule(import.meta.url);
-const [,, command, ...args] = invokedDirectly ? process.argv : [];
-if (invokedDirectly) loadEnvFile();
-const ctx = invokedDirectly ? loadContext() : null;
+const [,, requestedCommand, ...args] = invokedDirectly ? process.argv : [];
+const helpRequested = invokedDirectly && (!requestedCommand || requestedCommand === 'help'
+  || process.argv.slice(2).some(arg => arg === '--help' || arg === '-h'));
+const command = helpRequested ? 'help' : requestedCommand;
+if (invokedDirectly && !helpRequested) loadEnvFile();
+const ctx = invokedDirectly && !helpRequested ? loadContext() : null;
 
 // Load free models list before running any AI command (skip when a model is pinned)
 if (invokedDirectly && ['evaluate', 'eval', 'pipeline', 'apply', 'models'].includes(command) && !process.env.CAREER_OPS_MODEL) {

@@ -500,6 +500,11 @@ function runSelfTest() {
 // --- CLI (guarded so importing this module never runs it) ---
 if (isMainModule(import.meta.url)) {
   const args = process.argv.slice(2);
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log('Usage: node keyword-match.mjs <report-file> [--cv <path>] [--json]');
+    console.log('       node keyword-match.mjs --self-test');
+    process.exit(0);
+  }
 
   if (args.includes('--self-test')) {
     runSelfTest();

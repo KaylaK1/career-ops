@@ -80,10 +80,13 @@ test('allowed roots are this checkout and the configured data root only', async 
   const previousData = process.env.CAREER_OPS_DATA_DIR;
   const data = scratch();
   try {
-    process.env.CAREER_OPS_ROOT = '';
+    // Pin the no-separate-data-root scenario explicitly: the developer's
+    // .career-ops-data marker is a legitimate configured root, not a fixture.
+    process.env.CAREER_OPS_ROOT = ROOT;
     process.env.CAREER_OPS_DATA_DIR = '';
     assert.deepEqual(allowedRoots(), [ROOT]);
 
+    process.env.CAREER_OPS_ROOT = data;
     process.env.CAREER_OPS_DATA_DIR = data;
     const roots = allowedRoots();
     assert.ok(roots.includes(ROOT));
@@ -241,7 +244,7 @@ test('apply instructions name the scope guard and stop telling agents to attach 
 test('check-path and launch-options stay inside the project browser', () => {
   const rootRun = spawnSync(NODE, [join(ROOT, 'apply-scope.mjs'), 'root'], {
     cwd: ROOT,
-    env: { ...process.env, CAREER_OPS_ROOT: '', CAREER_OPS_DATA_DIR: '' },
+    env: { ...process.env, CAREER_OPS_ROOT: ROOT, CAREER_OPS_DATA_DIR: '' },
     encoding: 'utf8',
   });
   assert.equal(rootRun.status, 0);

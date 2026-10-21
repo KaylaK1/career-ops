@@ -176,8 +176,7 @@ test('-h is accepted wherever --help is, and suppresses the same work', () => {
 // flag is discarded, so `--help` falls through and the script runs.
 const KNOWN_WITHOUT_HELP = new Set([
   'batch-evaluate-gemini.mjs', 'cv-templates.mjs', 'fetch-jd.mjs',
-  'generate-cover-letter.mjs', 'generate-pdf.mjs', 'intake.mjs',
-  'match-star.mjs', 'openrouter-runner.mjs', 'plugins.mjs',
+  'intake.mjs', 'plugins.mjs',
   'seed-fixture.mjs',
   'validate-plugin-registry.mjs', 'validate-untrusted-content-coverage.mjs',
   // generate-latex.mjs and verify-portals.mjs were here and have since been
@@ -196,12 +195,7 @@ const KNOWN_WITHOUT_HELP = new Set([
   // instead of turning it into a seven-script fix; the ratchet's rule is
   // unchanged and the list may only get shorter from here.
   //
-  // keyword-match.mjs is the one worth a second look: it PRINTS usage for
-  // `--help`, which reads as handled, but only because the flag falls through
-  // to its "report file not found" path — so it exits 1 and would run the
-  // comparison if a file by that name existed.
   'batch/aggregate-tokens.mjs',
-  'keyword-match.mjs',
   'plugins/h1b-sponsor/install-h1b-index.mjs',
   'plugins/h1b-sponsor/token.mjs',
 

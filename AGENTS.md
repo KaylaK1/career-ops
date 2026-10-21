@@ -437,7 +437,9 @@ A single-string `modes_dir` (today's default, ~90% of users) behaves exactly as 
 
 | If the user... | Mode |
 |----------------|------|
-| Pastes JD or URL | auto-pipeline (evaluate + report + PDF + tracker) |
+| Pastes JD or URL, or explicitly requests auto-pipeline with a posting | `auto-pipeline` — evaluate + report + PDF + tracker |
+| Wants interactive profile/CV onboarding | `interview` |
+| Wants European SWE application calibration | `regional/eu-swe` — invoked as `eu-swe` |
 | Asks to evaluate offer | `oferta` |
 | Asks to compare offers | `ofertas` |
 | Wants LinkedIn outreach | `contacto` — identifies hiring manager, recruiter, or team peers via web search; drafts a message tailored to the contact type (recruiter / hiring manager / peer / interviewer), within LinkedIn's connection-request character limit for the account's tier (200 free, 300 Premium/Sales Navigator) |
@@ -457,7 +459,7 @@ A single-string `modes_dir` (today's default, ~90% of users) behaves exactly as 
 | Maintains their own hand-tuned `.tex` CV and wants it tailored in place (opt-in; cv.md stays the default) | `latex-tex` |
 | Wants a tailored CV as markdown instead of a PDF (to paste into their own template or editor) | `text` |
 | Wants a cover letter | `cover` |
-| Wants to add a role to the tracker manually | `add` |
+| Wants to add a role to the tracker manually | `tracker` — confirmed row via tracker-addition TSV and merge; do not edit the CV |
 | Wants to discover CV competencies they forgot to write down | `expand` |
 | Evaluates a course/cert | `training` |
 | Evaluates portfolio project | `project` |

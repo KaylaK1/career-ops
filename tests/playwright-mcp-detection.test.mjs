@@ -37,6 +37,7 @@ const EMPTY_HOME_DIR = mkdtempSync(join(tmpdir(), 'co-mcp-emptyhome-'));
 // pass them explicitly via env.
 function hostEnv() {
   const {
+    CAREER_OPS_CLI: _careerOpsCli,
     OPENCODE: _openCodeMarker,
     OPENCODE_CONFIG: _openCodeConfig,
     OPENCODE_CONFIG_DIR: _openCodeConfigDir,

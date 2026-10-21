@@ -423,9 +423,26 @@ async function runSuiteInChild(f, scratch, index) {
     return { ms: 0, lingered: false, report: () => fail(SUITE_REFUSALS[kind](rel)) };
   }
   if (kind === 'node-test') {
-    const r = await spawnSuite(['--test', f], DEFAULT_SCRIPT_TIMEOUT_MS * PARALLEL_NODE_TEST_BUDGET_FACTOR);
+    const budget = DEFAULT_SCRIPT_TIMEOUT_MS * PARALLEL_NODE_TEST_BUDGET_FACTOR;
+    let r = await spawnSuite(['--test', f], budget);
+    // A Node runner IPC failure is not a test verdict. Some Node versions
+    // intermittently fail to decode a worker's V8 message under parallel load.
+    // Retry only that internal failure using node:test's direct autorunner;
+    // this suite still has its own OS process, timeout and normal assertions.
+    // --test-isolation=none is not equivalent: top-level `await test(...)`
+    // can deadlock while the test loader waits for the module to finish.
+    const output = `${r.stdout}\n${r.stderr}`;
+    const retriedRunner = r.status !== 0
+      && output.includes('Unable to deserialize cloned data due to invalid or unsupported version.')
+      && output.includes('node:internal/test_runner/runner');
+    if (retriedRunner) {
+      r = await spawnSuite([f], budget);
+    }
     const how = r.timedOut ? `killed after ${Math.round(r.ms / 1000)}s` : `exit ${r.status ?? '?'}`;
-    return { ms: r.ms, lingered: false, report: () => reportNodeTestSuite(rel, r.status === 0, r.stdout, r, how) };
+    return { ms: r.ms, lingered: false, report: () => {
+      if (retriedRunner) warn(`${rel}: Node worker IPC decode failed; reran in its own process without nested worker isolation`);
+      reportNodeTestSuite(rel, r.status === 0, r.stdout, r, how);
+    } };
   }
   const resultFile = join(scratch, `${index}.json`);
   const args = [join(TESTS_DIR, 'run-discovered-child.mjs'), f, resultFile];
@@ -13987,7 +14004,9 @@ try {
   // warning assertion below fails. Same reasoning as the GIT_CONFIG_* pinning
   // in section 12c.
   const emptyClaudeCfg = mkdtempSync(join(tmpdir(), 'co-emptycfg-'));
-  const doctorEnv = { env: { ...process.env, CLAUDE_CONFIG_DIR: emptyClaudeCfg } };
+  // These fixtures exercise Claude's MCP files, regardless of the CLI running
+  // the suite. An inherited CAREER_OPS_CLI=codex otherwise bypasses them.
+  const doctorEnv = { env: { ...process.env, CAREER_OPS_CLI: 'claude', CLAUDE_CONFIG_DIR: emptyClaudeCfg } };
 
   // No project MCP config → doctor surfaces a (non-fatal) warning instead of
   // letting SPA job boards fail silently. doctor reads project MCP config from
@@ -19666,10 +19685,12 @@ try {
   let stdout = '';
   let stderr = '';
   try {
-    stdout = execFileSync(NODE, [join(ROOT, 'gemini-eval.mjs'), '--file', jdPath, '--no-save'], {
+    stdout = execFileSync(NODE, [join(ROOT, 'gemini-eval.mjs'), '--file', jdPath, '--no-save', '--context-only'], {
       cwd: geminiTmp,
       env: {
         ...process.env,
+        CAREER_OPS_ROOT: geminiTmp,
+        CAREER_OPS_DATA_DIR: geminiTmp,
         GEMINI_API_KEY: 'mock-api-key-12345'
       },
       encoding: 'utf-8',
@@ -19694,10 +19715,12 @@ try {
     pass('Gemini evaluator resolved custom modes directory (modes/tr/) and localized filenames (is-ilani.md)');
   }
 
-  if (stderr.includes('API_KEY') || stderr.includes('API key')) {
-    pass('Gemini evaluator reached API phase with mock key');
+  // This fixture tests BOM handling and mode resolution, not a live model.
+  // An invalid key can hang behind a proxy instead of producing an API error.
+  if (stdout.includes('Evaluation mode: modes/tr/is-ilani.md')) {
+    pass('Gemini evaluator resolves the Turkish mode with --context-only (no live API call)');
   } else {
-    fail(`Gemini evaluator failed before reaching API phase or crashed: ${stderr}`);
+    fail(`Gemini evaluator did not resolve the requested mode: ${stderr || stdout}`);
   }
 } catch (e) {
   fail(`Gemini evaluator test crashed: ${e.message}`);

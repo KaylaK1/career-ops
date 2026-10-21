@@ -291,20 +291,24 @@ career-ops uses a shared command router. In CLIs that register slash commands, i
 ```
 /career-ops           → Show all available commands
 /career-ops {JD}      → AUTO-PIPELINE: evaluate + report + PDF + tracker (paste text or URL)
+/career-ops auto-pipeline → Explicit full pipeline; requires JD text or a job URL
 /career-ops pipeline  → Process pending URLs from inbox (data/pipeline.md)
-/career-ops oferta    → Evaluation only, blocks A to H (no auto PDF)
+/career-ops oferta    → Evaluation A-G + report + tracker (no auto PDF)
 /career-ops ofertas   → Compare and rank multiple offers
 /career-ops contacto  → LinkedIn power move: find contacts + draft message
 /career-ops deep      → Deep research prompt about company
 /career-ops interview-prep → Generate company-specific interview prep doc
 /career-ops interview    → Interactive profile/CV onboarding interview
 /career-ops master-profile → Import, review, validate, and prepare selected Profile facts as CV bullets
+/career-ops intake    → Propose profile additions from documents, with source annotations
+/career-ops retro     → Save accepted lessons as persistent rules
 /career-ops eu-swe    → Calibrate a European SWE application before CV/apply/interview
 /career-ops interview/plan → Time-blocked prep plan for an upcoming interview
 /career-ops interview/practice → Practice interview, one question at a time with feedback
 /career-ops interview/debrief → Post-interview debrief: close gaps, predict next round
 /career-ops interview-redflag → Analyze employer warning signs before joining a company
 /career-ops pdf       → PDF only, ATS-optimized CV
+/career-ops ats       → Check a generated CV for ATS compatibility
 /career-ops text      → Tailored markdown CV (mirrors cv.md, no PDF)
 /career-ops latex     → Export CV as LaTeX/Overleaf .tex
 /career-ops latex-tex → Tailor your own resume.tex in place (opt-in; cv.md stays default)
@@ -316,9 +320,11 @@ career-ops uses a shared command router. In CLIs that register slash commands, i
 /career-ops project   → Evaluate portfolio project idea
 /career-ops tracker   → Application status overview
 /career-ops agent-inbox → Queue/drain requests for the next session (data/agent-inbox.md)
+/career-ops inbox     → Alias for agent-inbox
 /career-ops apply     → Live application assistant (Playwright from this checkout, does not submit)
 /career-ops scan      → Scan portals and discover new offers
-/career-ops discover  → Resolve a company list to scannable ATS boards + append to portals.yml (zero-token)
+/career-ops discover  → Preview company ATS boards; append only after confirmation
+/career-ops triage    → Fast first-pass go/no-go evaluation without file writes
 /career-ops batch     → Batch processing with parallel workers
 /career-ops patterns  → Analyze rejection patterns and improve targeting
 /career-ops offer-prep → Read a received offer/contract with the candidate: clause walk + lawyer questions (not legal advice)

@@ -25,7 +25,8 @@
  *   node tracker.mjs sync [--check]             # (re)build applications.db from applications.md
  *                                               # --check: diagnose only, no write; exit 1 if issues found
  *   node tracker.mjs query [--status Applied] [--company acme] [--role designer]
- *                          [--since 2026-01-01] [--id N] [--limit 20] [--json]
+ *                          [--since 2026-01-01] [--id N] [--limit 20] [--json] [--all-columns]
+ *   node tracker.mjs                          # query, preserving every source column
  *   node tracker.mjs history --id N             # status transition log observed across syncs
  *   node tracker.mjs export [--out FILE] [--force]  # inverse: applications.db → markdown (stdout by default)
  *                                               # --force: write even when columns would be dropped
@@ -658,10 +659,6 @@ function flagValue(args, flag) {
 // A pipe inside a cell would split the row; a newline would end it.
 const cleanCell = (v) => String(v ?? '').replace(/\|/g, '│').replace(/\r?\n/g, ' ');
 
-function rowToMarkdown(r) {
-  return `| ${r.id} | ${cleanCell(r.date)} | ${cleanCell(r.company)} | ${cleanCell(r.role)} | ${cleanCell(r.score)} | ${cleanCell(r.status)} | ${cleanCell(r.pdf)} | ${cleanCell(r.report)} | ${cleanCell(r.notes)} |`;
-}
-
 async function query(args, ctx) {
   const DatabaseSync = await loadSqlite(ctx);
   const db = ctx.openDb(DatabaseSync);
@@ -682,7 +679,10 @@ async function query(args, ctx) {
   if (role) { where.push('role LIKE ?'); params.push(`%${role}%`); }
   const since = flagValue(args, '--since');
   if (since) {
-    if (!DATE_RE.test(since)) { ctx.error('Error: --since must be YYYY-MM-DD'); throw new TrackerExit(1); }
+    if (!DATE_RE.test(since) || !Number.isFinite(Date.parse(since))
+      || new Date(since).toISOString().slice(0, 10) !== since) {
+      ctx.error('Error: --since must be a valid YYYY-MM-DD date'); throw new TrackerExit(1);
+    }
     where.push('date >= ?'); params.push(since);
   }
   const idRaw = flagValue(args, '--id');
@@ -692,18 +692,37 @@ async function query(args, ctx) {
     where.push('id = ?'); params.push(id);
   }
 
-  let sql = 'SELECT id, date, company, role, score, status, pdf, report, notes FROM applications'
+  let sql = 'SELECT * FROM applications'
     + (where.length ? ' WHERE ' + where.join(' AND ') : '') + ' ORDER BY id DESC';
-  const limit = parseInt(flagValue(args, '--limit') || '0', 10);
+  const limitRaw = flagValue(args, '--limit') ?? '0';
+  const limit = Number(limitRaw);
+  if (!/^\d+$/.test(limitRaw) || !Number.isSafeInteger(limit)) {
+    ctx.error('Error: --limit must be a non-negative integer (0 means unlimited)'); throw new TrackerExit(1);
+  }
   if (limit > 0) { sql += ' LIMIT ?'; params.push(limit); }
 
   const rows = db.prepare(sql).all(...params);
+  const meta = Object.fromEntries(db.prepare('SELECT key, value FROM meta').all().map(m => [m.key, m.value]));
+  const layout = readLayout(meta);
   if (args.includes('--json')) {
-    ctx.log(JSON.stringify(rows, null, 2));
+    // Keep the established nine-field JSON contract unless explicitly asked
+    // for the complete source layout. Markdown always preserves that layout.
+    const labels = headerLabels(layout.header || HEADER);
+    const table = args.includes('--all-columns') ? renderTable(rows, layout) : null;
+    const result = rows.map((r, index) => {
+      const entry = Object.fromEntries(Object.values(SCHEMA_FIELDS).map(field => [field, r[field]]));
+      if (table) {
+        const cells = table.body[index].split('|').slice(1, -1).map(cell => cell.trim());
+        entry.columns = Object.fromEntries(labels.map((label, i) => [label, cells[i]]));
+      }
+      return entry;
+    });
+    ctx.log(JSON.stringify(result, null, 2));
   } else {
-    ctx.log(HEADER);
-    ctx.log(SEPARATOR);
-    for (const r of rows) ctx.log(rowToMarkdown(r));
+    const table = renderTable(rows, layout);
+    ctx.log(table.header);
+    ctx.log(table.separator);
+    for (const row of table.body) ctx.log(row);
     ctx.error(`\n${rows.length} row(s)`); // stderr so stdout stays pipeable
   }
 }
@@ -1008,10 +1027,12 @@ const SUBCOMMAND_FLAGS = {
       + '  --check: diagnose only, no write; exit 1 if issues found',
   },
   query: {
-    known: ['--status', '--company', '--role', '--since', '--id', '--limit', '--json', '--help', '-h'],
+    known: ['--status', '--company', '--role', '--since', '--id', '--limit', '--json', '--all-columns', '--help', '-h'],
     valueFlags: ['--status', '--company', '--role', '--since', '--id', '--limit'],
     usage: 'Usage: node tracker.mjs query [--status Applied] [--company acme] [--role designer]\n'
-      + '                              [--since 2026-01-01] [--id N] [--limit 20] [--json]',
+      + '                              [--since 2026-01-01] [--id N] [--limit 20] [--json] [--all-columns]\n'
+      + '  Markdown includes every source column. --json keeps the nine indexed fields;\n'
+      + '  add --all-columns to include a columns object with every source label/value.',
   },
   history: {
     known: ['--id', '--help', '-h'],
@@ -1104,7 +1125,7 @@ export async function runTracker(command, args = [], options = {}) {
 }
 
 if (isMainModule(import.meta.url)) {
-  const [command, ...args] = process.argv.slice(2);
+  const [command = 'query', ...args] = process.argv.slice(2);
   // #4602: flags are validated here, at the CLI boundary, before runTracker
   // sees them. validateFlags() prints and calls process.exit(), which is right
   // for a command line and wrong inside runTracker, whose contract is to

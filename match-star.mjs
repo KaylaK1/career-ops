@@ -216,6 +216,11 @@ export { parseStories, tokenize, score, formatAts, STOPWORDS };
 // ── Main ─────────────────────────────────────────────────────────────
 
 if (isMainModule(import.meta.url)) {
+if (args.includes('--help') || args.includes('-h')) {
+  console.log('Usage: node match-star.mjs "<behavioural question>" [--jd <file>] [--top <n>]');
+  console.log('       node match-star.mjs --list');
+  process.exit(0);
+}
 if (!existsSync(STORY_BANK_PATH)) {
   console.error(`Error: ${STORY_BANK_PATH} not found.`);
   console.error('Run /career-ops interview-prep on a role first to populate your story bank.');

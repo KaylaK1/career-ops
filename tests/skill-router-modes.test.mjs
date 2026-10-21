@@ -10,7 +10,7 @@
 // AGENTS.md, which is why the gap went unnoticed for triage, calibrate,
 // intake and ats.
 
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { fail, pass, ROOT } from './helpers.mjs';
 
@@ -46,6 +46,27 @@ const shared = appliesTo('Modes that require `_shared.md` + their mode file');
 const standalone = appliesTo('Standalone modes with profile and custom context');
 const ownContext = appliesTo('Modes that load only their mode file');
 const delegated = skill.split('### Modes delegated to subagent')[1] ?? '';
+
+// Audit ALL routes, including aliases. Checking only a handful of recently
+// added modes let reply-watch/interview-redflag disappear from the menu and
+// expand/update/interview-redflag lose their context-loading instructions.
+const routes = [...skill.matchAll(/^\| `([^`]+)` \| `([^`]+)` \|$/gm)];
+const menu = [...skill.matchAll(/^  \/career-ops ([\w/-]+) +→/gm)].map(m => m[1]);
+const policies = [...`${shared} ${standalone} ${ownContext}`.matchAll(/`([^`]+)`/g)].map(m => m[1]);
+for (const [, input, target] of routes) {
+  const issues = [];
+  if (!existsSync(join(ROOT, 'modes', `${target}.md`))) issues.push('mode file');
+  if (!argumentHint.includes(input)) issues.push('argument-hint');
+  if (!menu.includes(input)) issues.push('discovery menu');
+  if (policies.filter(m => m === target).length !== 1) issues.push('exactly one context policy');
+  if (issues.length) fail(`${input}: missing/inconsistent ${issues.join(', ')}`);
+  else pass(`${input}: file, hint, menu and context policy agree`);
+}
+const targets = new Set(routes.map(m => m[2]));
+for (const file of readdirSync(join(ROOT, 'modes'))) {
+  if (!file.endsWith('.md') || file.startsWith('_') || file === 'README.md') continue;
+  if (!targets.has(file.slice(0, -3))) fail(`public mode ${file} has no explicit route`);
+}
 
 for (const mode of ['triage', 'calibrate', 'intake', 'ats', 'retro']) {
   const missing = [];

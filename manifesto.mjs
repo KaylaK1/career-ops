@@ -8,6 +8,11 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PAGE = 'https://career-ops.org/manifesto';
+if (process.argv.slice(2).some(arg => arg === '--help' || arg === '-h')) {
+  console.log('Usage: node manifesto.mjs');
+  console.log('Prints the manifesto link and opens its signing page in your browser.');
+  process.exit(0);
+}
 
 try {
   const text = readFileSync(join(here, 'MANIFESTO.md'), 'utf8');

@@ -179,8 +179,8 @@ function assertInsideWorkspace(absPath, label) {
   return absPath;
 }
 
-// Ensure output directory exists (fresh setup)
-mkdirSync(resolve(workspaceRoot, 'output'), { recursive: true });
+// Rendering creates its destination directory at write time. Importing the
+// module or requesting help must not create output/ in the user's data root.
 
 /**
  * Normalize text for ATS compatibility by converting problematic Unicode.
@@ -1563,6 +1563,12 @@ async function runFactGate(html, label) {
  */
 async function generatePDF() {
   const args = process.argv.slice(2);
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log('Usage: node generate-pdf.mjs <input.html> <output.pdf> [--format=letter|a4] [--country=XX] [--report=NNN] [--kind=cv|cover] [--max-pages=N] [--strict-pages]');
+    console.log('       node generate-pdf.mjs --batch=<manifest.json>');
+    console.log('Validates the document before rendering. See docs/SCRIPTS.md for fact and layout overrides.');
+    return;
+  }
   let skipFactCheck = false;
 
   // Parse arguments

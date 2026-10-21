@@ -40,6 +40,11 @@ const ALLOWED_HOSTS = new Set([
 // ── CLI args ─────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2);
+if (args.includes('--help') || args.includes('-h')) {
+  console.log('Usage: node prepare-application.mjs --url <apply_url> --pdf <pdf_path> [--cover <cover_txt>]');
+  console.log('Prints a local prefill summary for Greenhouse, Ashby or Lever; does not submit.');
+  process.exit(0);
+}
 const get = (flag) => { const i = args.indexOf(flag); return i !== -1 ? args[i + 1] : null; };
 
 const applyUrl  = get('--url');

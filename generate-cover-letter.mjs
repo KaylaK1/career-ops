@@ -418,7 +418,11 @@ function collectInputText(value) {
 
 /** Parse a payload, run the fact gate, and render the cover-letter PDF. */
 async function main() {
+  // npm's cover-letter script already supplies --payload. Without this early
+  // normalization, `npm run cover-letter -- --help` treats --help as its path.
+  const argv = process.argv.slice(2);
   const { values: args } = parseArgs({
+    args: argv.some(arg => arg === '--help' || arg === '-h') ? ['--help'] : argv,
     options: {
       payload: { type: "string" },
       out:     { type: "string" },

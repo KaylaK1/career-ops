@@ -1007,9 +1007,11 @@ Zero new dependencies — uses `node:sqlite`, built into Node (no flag needed fr
 
 ```bash
 node tracker.mjs sync                     # (re)build applications.db from applications.md
+node tracker.mjs                          # show all tracker columns (same as query)
 node tracker.mjs sync --check             # diagnose corruption only, no write (exit 1 if issues found)
 node tracker.mjs query --status Applied --since 2026-05-01
 node tracker.mjs query --company acme --json
+node tracker.mjs query --company acme --json --all-columns # include every source label/value
 node tracker.mjs history --id 42          # status transitions observed across syncs (Applied → Interview → ...)
 node tracker.mjs export                   # inverse: index → markdown table on stdout
 node tracker.mjs export --out repaired.md # write to a file (existing file backed up to .bak first)
@@ -1020,13 +1022,15 @@ node tracker.mjs delete --num 42          # remove row 42 from applications.md (
 
 `query` and `history` auto-resync when the markdown changed since the last sync, so the index can never serve stale reads.
 
+Markdown queries show every saved column in source order, including URL, Via, Location and custom fields. Plain `--json` preserves the original nine-field API; `--json --all-columns` adds a `columns` object keyed by the original header labels. Job and report Markdown links remain intact. `--limit` must be a non-negative integer (0 is unlimited), and `--since` must be a real calendar date in YYYY-MM-DD form.
+
 `sync` detects and reports the corruption classes markdown accumulates — mojibake placeholder cells, scores stranded in the status column, non-canonical statuses (resolved via `templates/states.yml` aliases), missing/malformed/duplicate ids, stray pipes — and normalizes them **in the index only**; the markdown is never modified. Fix at the source with `normalize-statuses.mjs` / `dedup-tracker.mjs`, then re-sync. Status changes between syncs accumulate in a `status_events` table, which gives `analyze-patterns.mjs` a real funnel instead of only the current snapshot.
 
 `delete` removes the row numbered `--num` from `applications.md` under the same lock as `merge-tracker.mjs`, after copying the tracker to `applications.md.bak`, and then rebuilds the index. `--dry-run` previews and writes nothing, the backup included. The row's report file is left on disk and named in the output.
 
 `export` is the inverse of `sync`. It writes to stdout by default and never touches `applications.md` unless you explicitly pass it as `--out`. Phase 2 of #918 (DB becomes source of truth, markdown becomes a rendered view) is a separate, explicit per-user opt-in — not part of this script yet.
 
-**The round-trip carries the layout, not only the values (#3703).** `sync` maps columns by header NAME, so a customized tracker (a `Location`, `Via` or `URL` column, or one of your own) indexes correctly — but `export` used to write nine fixed columns in a fixed order under a fixed `# Applications Tracker` title, so adopting its output cost you those columns with no warning, right after `sync` reported a clean index. Losing the `URL` column in particular disables `merge-tracker.mjs`'s deterministic dedup pass, which is not visible in the file either. `export` now replays the header row it read, puts unmapped cells back in their own columns, and keeps the lines before and after the table (your own title, a legend, a trailing note) plus the file's line endings. The schema itself is still the canonical nine fields — extra columns ride along by position, so they are preserved by `export` but not queryable via `query`.
+**The round-trip carries the layout, not only the values (#3703).** `sync` maps columns by header NAME, so a customized tracker (a `Location`, `Via` or `URL` column, or one of your own) indexes correctly — but `export` used to write nine fixed columns in a fixed order under a fixed `# Applications Tracker` title, so adopting its output cost you those columns with no warning, right after `sync` reported a clean index. Losing the `URL` column in particular disables `merge-tracker.mjs`'s deterministic dedup pass, which is not visible in the file either. `export` now replays the header row it read, puts unmapped cells back in their own columns, and keeps the lines before and after the table (your own title, a legend, a trailing note) plus the file's line endings. The schema itself is still the canonical nine fields — extra columns ride along by position. Queries display them and `--json --all-columns` exposes their values, but SQL filters still target the indexed fields.
 
 **What "lossless" covers, exactly.** The guarantee is about *structure*, not bytes: `export` preserves the layout and every value it does not deliberately repair. Concretely it keeps the title, preamble and trailing lines *with their own whitespace* (they are copied, not re-rendered), the header and separator, the column set and every row's position in it, and CRLF vs LF. Enforced by `tests/tracker-columns.test.mjs`, including localized headers career-ops cannot name, unknown user columns, indented tables and indented prose.
 
@@ -1285,7 +1289,7 @@ npm run prepare:application -- --url https://boards.greenhouse.io/acme/jobs/123
 Cross-platform build wrapper for the Go TUI dashboard: picks the
 platform-correct output name (`career-dashboard.exe` on Windows, else
 `career-dashboard`), since a bare `go build -o` writes an extension-less
-binary on Windows. Requires Go 1.24+.
+binary on Windows. Requires the Go compiler version declared in `dashboard/go.mod` (currently Go 1.26.0+). The build checks the compiler version first and rejects unrelated programs named `go` with setup instructions.
 
 ```bash
 npm run build:dashboard

@@ -5993,6 +5993,10 @@ if (process.argv[1] && !isCli) {
 }
 
 if (isCli) {
+  if (process.argv.slice(2).some(arg => arg === '--help' || arg === '-h')) {
+    console.log('Usage: node update-system.mjs [check [--force] [--channel main]|status|apply --confirm [--force] [--channel main] [--commit-on-branch]|rollback|dismiss [--version X.Y.Z]]');
+    process.exit(0);
+  }
   const cmd = process.argv[2] || 'check';
 
   try {

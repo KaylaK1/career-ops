@@ -8,7 +8,7 @@ description: >-
 arguments: mode
 user_invocable: true
 user-invocable: true
-argument-hint: "[scan | discover | deep | pdf | ats | text | latex | latex-tex | cover | email | add | expand | eu-swe | oferta | ofertas | apply | triage | batch | tracker | agent-inbox | pipeline | contacto | training | project | interview-prep | interview | master-profile | intake | retro | interview/plan | interview/practice | interview/debrief | interview-redflag | patterns | calibrate | offer-prep | titles | upskill | followup | reply-watch | outcome | update]"
+argument-hint: "[auto-pipeline | scan | discover | deep | pdf | ats | text | latex | latex-tex | cover | email | add | expand | eu-swe | oferta | ofertas | apply | triage | batch | tracker | agent-inbox | inbox | pipeline | contacto | training | project | interview-prep | interview | master-profile | intake | retro | interview/plan | interview/practice | interview/debrief | interview-redflag | patterns | calibrate | offer-prep | titles | upskill | followup | reply-watch | outcome | update]"
 license: MIT
 ---
 
@@ -49,6 +49,7 @@ Determine the mode from `$mode`:
 |-------|------|
 | (empty / no args) | `discovery` -- Show command menu |
 | JD text or URL (no sub-command) | **`auto-pipeline`** |
+| `auto-pipeline` | `auto-pipeline` |
 | `oferta` | `oferta` |
 | `ofertas` | `ofertas` |
 | `contacto` | `contacto` |
@@ -93,9 +94,19 @@ Determine the mode from `$mode`:
 | `update` | `update` |
 | `cover` | `cover` |
 
-**Auto-pipeline detection:** If `$mode` is not a known sub-command AND contains JD text (keywords: "responsibilities", "requirements", "qualifications", "about the role", "we're looking for", company name + role) or a URL to a JD, execute `auto-pipeline`.
+**Script detection before fallback:** If the first token names a script in `PROJECT_ROOT/package.json` and is not a mode in the table above (for example `scan:full`), dispatch that script with the remaining arguments using the invocation contract below. Do this before JD detection or discovery fallback. A bare `auto-pipeline` requires a JD or URL; do not reinterpret it as the queued `pipeline` mode.
+
+**Auto-pipeline detection:** Otherwise, if `$mode` is not a known sub-command AND contains JD text (keywords: "responsibilities", "requirements", "qualifications", "about the role", "we're looking for", company name + role) or a URL to a JD, execute `auto-pipeline`.
 
 If `$mode` is not a sub-command AND doesn't look like a JD, show discovery.
+
+## Invocation and display contract
+
+- Load the selected mode file before executing it; every route below has an explicit context-loading policy. Follow its required inputs, output sections, tables, artifact checks and write gates. A short chat answer must not silently discard required fields.
+- Honor the user's saved output preferences from `DATA_ROOT/modes/_custom.md`. For tracker output, preserve every source column and its order, including URL, Report and Notes; do not substitute a reduced score/company summary unless requested. Render existing job links as clickable links, and state when a value or artifact is unavailable.
+- If a command needs a JD, company, report, interview session, contract or other input, use only an unambiguous existing selection permitted by that mode. If none is available, name the missing input and ask for it; do not evaluate an invented role or silently choose an unrelated report.
+- Distinguish assistant modes from npm scripts. `scan:full`, `scan:seeds`, `scan:yc` and other script names are defined in `PROJECT_ROOT/package.json`, not separate mode files. For an explicitly requested script, inspect its help and run `npm run <script> -- <arguments>` from `PROJECT_ROOT`; retain the requested date window, dry-run flag and source restrictions. Do not fall back to the default scan or a live write when a requested variant or flag is unavailable.
+- Report what actually completed: inputs processed, matches versus evaluated recommendations, artifacts created, items still pending, and failures or partial coverage. A successful process exit with all fetches failed is not a successful scan with no jobs. Preview-only output is not a saved change; local writes are not committed or pushed unless those operations were performed.
 
 ---
 
@@ -150,8 +161,9 @@ career-ops -- AI Job Search Agent
 
 Available commands:
   /career-ops {JD}      → AUTO-PIPELINE: evaluate + report + PDF + tracker (paste text or URL)
+  /career-ops auto-pipeline → Explicit full pipeline; requires JD text or a job URL
   /career-ops pipeline  → Process pending URLs from inbox (data/pipeline.md)
-  /career-ops oferta    → Evaluation only A-F (no auto PDF)
+  /career-ops oferta    → Evaluation A-G + report + tracker (no auto PDF)
   /career-ops ofertas   → Compare and rank multiple offers
   /career-ops contacto  → LinkedIn power move: find contacts + draft message
   /career-ops deep      → Deep research prompt about company
@@ -177,9 +189,10 @@ Available commands:
   /career-ops project   → Evaluate portfolio project idea
   /career-ops tracker   → Application status overview
   /career-ops agent-inbox → Queue/drain requests for the next session (data/agent-inbox.md)
+  /career-ops inbox     → Alias for agent-inbox
   /career-ops apply     → Live application assistant (Playwright from this checkout, does not submit)
   /career-ops scan      → Scan portals and discover new offers
-  /career-ops discover  → Resolve a company list to scannable ATS boards + append to portals.yml (zero-token)
+  /career-ops discover  → Preview company ATS boards; append to portals.yml only after confirmation
   /career-ops triage    → Fast first-pass go/no-go score from modes/_brief.md (writes no files)
   /career-ops batch     → Batch processing with parallel workers
   /career-ops patterns  → Analyze rejection patterns and improve targeting
@@ -188,6 +201,8 @@ Available commands:
   /career-ops titles    → Suggest adjacent job titles from your CV to broaden the search
   /career-ops upskill   → Aggregate skill-gap analysis from your evaluated reports
   /career-ops followup  → Follow-up cadence tracker: flag overdue, generate drafts
+  /career-ops reply-watch → Classify employer replies and suggest tracker updates
+  /career-ops interview-redflag → Analyze employer warning signs from interview transcripts
   /career-ops outcome   → Record application outcome & archive artifacts
   /career-ops update    → Update career-ops system files with diff preview + compat check
 
@@ -215,7 +230,7 @@ Applies to: `auto-pipeline`, `oferta`, `ofertas`, `pdf`, `text`, `contacto`, `ap
 
 Read `modes/_profile.md` (if exists) + `modes/_custom.md` (if exists) + `modes/{mode}.md`
 
-Applies to: `tracker`, `agent-inbox`, `deep`, `interview-prep`, `interview`, `master-profile`, `regional/eu-swe`, `interview/plan`, `interview/practice`, `interview/debrief`, `latex`, `latex-tex`, `training`, `project`, `patterns`, `titles`, `upskill`, `followup`, `reply-watch`, `outcome`, `cover`, `email`, `add`, `offer-prep`, `discover`, `intake`, `ats`, `calibrate`, `retro`
+Applies to: `tracker`, `agent-inbox`, `deep`, `interview-prep`, `interview`, `master-profile`, `regional/eu-swe`, `interview/plan`, `interview/practice`, `interview/debrief`, `interview-redflag`, `latex`, `latex-tex`, `training`, `project`, `patterns`, `titles`, `upskill`, `followup`, `reply-watch`, `outcome`, `cover`, `email`, `add`, `expand`, `offer-prep`, `discover`, `intake`, `ats`, `calibrate`, `retro`, `update`
 
 ### Modes that load only their mode file
 
